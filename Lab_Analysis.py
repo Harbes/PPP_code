@@ -492,7 +492,6 @@ def WeightsEstimatedFromPPP_PCA(ret_p,kappa=1.0,n_com=57):
     D,V=np.linalg.eigh(ret_port.cov())
     ret_port_reconstrcut = (ret_port.fillna(0.0) @ V[:, -n_com:]).replace(0.0, np.nan)
     return V[:, -n_com:] @ (np.diag(1.0 / (D[-n_com:] + gam)) @ ret_port_reconstrcut.mean())
-
 n_com=57# todo 不同设置结果不同：【方案1】kappa=100000，n=15,好；【方案2】有shrinkage时，n=57似乎是最好的；
 #gam=3.0 # 0.0 的样本外效果反而差一些
 t_range_out_of_sample=date_investing[(date_investing>'2005-01') & (date_investing<'2019-12')]
