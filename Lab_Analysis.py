@@ -492,17 +492,16 @@ def WeightsEstimatedFromPPP_PCA(ret_p,kappa=1.0,n_com=57):
     D,V=np.linalg.eigh(ret_port.cov())
     ret_port_reconstrcut = (ret_port.fillna(0.0) @ V[:, -n_com:]).replace(0.0, np.nan)
     return V[:, -n_com:] @ (np.diag(1.0 / (D[-n_com:] + gam)) @ ret_port_reconstrcut.mean())
-
 n_com=57# todo 不同设置结果不同：【方案1】kappa=100000，n=15,好；【方案2】有shrinkage时，n=57似乎是最好的；
 #gam=3.0 # 0.0 的样本外效果反而差一些
-t_range_out_of_sample=date_investing[(date_investing>'2005-01') & (date_investing<'2019-12')]
+t_range_out_of_sample=date_investing[(date_investing>'2005-01')]# & (date_investing<'2019-12')]
 #ret_top_ports=pd.DataFrame(np.nan,index=t_range_out_of_sample,columns=range(1))
 w=pd.DataFrame(np.nan,index=t_range_out_of_sample,columns=signal_names.split(','))
 for t in t_range_out_of_sample:
     # shrinkage效果更好
     w.loc[t]=WeightsEstimatedFromPPP_PCA(cov_chara_ret.loc[:t-Day()],kappa=1.0,n_com=n_com)#.reindex(index=cov_chara_ret.columns).values
 # 似乎在n_com较小时，使用expanding会优化结果
-ret_optimal_port=(cov_chara_ret.loc[t_range_out_of_sample]*w.apply(lambda x:x/x.abs().sum(),axis=1)).sum(axis=1)# w.expanding().mean()
+ret_optimal_port=(cov_chara_ret.loc[t_range_out_of_sample]*w.loc[:'2019-11'].apply(lambda x:x/x.abs().sum(),axis=1)).sum(axis=1)#w.expanding().mean()
 # 组合的自相关性非常强；剔除异常值会使得结果更好
 #tmp_oos=\
 PortfolioAnalysis(ret_optimal_port,winso=True)#.loc['t_NW_adjusted'].sort_values()
@@ -531,6 +530,26 @@ SR_=pd.read_excel(data_path_local+'relation_N_SR.xlsx')[['SR','SR_ann']]
 plt.plot(pd.Series(SR_.index)+1,SR_['SR'],label='SR'); #,
 plt.plot(pd.Series(SR_.index)+1,SR_['SR_ann'],label='SR_ann')
 plt.legend();plt.show()
+
+# todo 个股权重分析
+def GenerateStockWeights(w,chara_port_standard):
+    w_stock=pd.DataFrame(np.nan,index=w.index,columns=chara_port_standard.iloc[:,0].unstack().columns)
+    for t in w.index:
+        w_stock.loc[t]=chara_port_standard.loc[t].fillna(0.0)@w.loc[t]
+    return w_stock
+w_stock=GenerateStockWeights(w,chara_port_standard)
+w_stock_non_10=GenerateStockWeights(w[w.columns.difference(predictors_names)],chara_port_standard[w.columns.difference(predictors_names)])
+PortfolioAnalysis((w_stock[w_stock>0].apply(lambda x:x/x.sum(),axis=1)*ret.loc[w_stock.index]).sum(axis=1))
+PortfolioAnalysis((w_stock_non_10[w_stock_non_10>0].apply(lambda x:x/x.sum(),axis=1)*ret.loc[w_stock_non_10.index]).sum(axis=1))
+
+w_stock[w_stock>0].apply(lambda x:x/x.sum(),axis=1)
+(w_stock[w_stock>0].apply(lambda x:x/x.sum(),axis=1)>0.0).sum(axis=1)
+tmp=w_stock[w_stock>0].apply(lambda x:x/x.sum(),axis=1).iloc[-1]
+tmp[~tmp.isnull()]
+ttmp=tmp[~tmp.isnull()].sort_values(ascending=False).iloc[:20];ttmp
+
+tmp_non_10=w_stock_non_10[w_stock_non_10>0].apply(lambda x:x/x.sum(),axis=1).iloc[-1]
+tmp_non_10[~tmp_non_10.isnull()].sort_values(ascending=False).iloc[:20]
 
 
 # todo 加权估计协方差+Sparse PCA
